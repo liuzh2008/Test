@@ -1,0 +1,11 @@
+hospital:
+  id: "tdd-test-hospital-001"
+  name: "TDD测试医院"
+  integrationType: "database"
+  his:
+    url: "jdbc:oracle:thin:@localhost:1521/orcl"
+    username: "test_user"
+    password: "test_password"
+    tablePrefix: "HIS_"
+  sync:
+    enabled: true

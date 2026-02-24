@@ -1,0 +1,884 @@
+package com.example.medaiassistant.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 统一调度配置属性类
+ * 用于集中管理所有定时任务相关的配置参数
+ */
+@Component
+@ConfigurationProperties(prefix = "scheduling")
+public class SchedulingProperties {
+
+    /**
+     * 自动执行配置
+     */
+    private AutoExecuteConfig autoExecute = new AutoExecuteConfig();
+
+    /**
+     * 定时任务配置
+     */
+    private TimerConfig timer = new TimerConfig();
+
+    /**
+     * 线程池配置
+     */
+    private ExecutorConfig executor = new ExecutorConfig();
+
+    /**
+     * Prompt生成线程池配置
+     */
+    private ThreadPoolConfig promptGenerationPool = new ThreadPoolConfig();
+
+    /**
+     * 手术分析线程池配置
+     */
+    private ThreadPoolConfig surgeryAnalysisPool = new ThreadPoolConfig();
+
+    /**
+     * 监控配置
+     */
+    private MonitoringConfig monitoring = new MonitoringConfig();
+
+    /**
+     * 执行服务器轮询配置
+     */
+    private ExecutionPollingConfig executionPolling = new ExecutionPollingConfig();
+
+    // Getter和Setter方法
+
+    public AutoExecuteConfig getAutoExecute() {
+        return autoExecute;
+    }
+
+    public void setAutoExecute(AutoExecuteConfig autoExecute) {
+        this.autoExecute = autoExecute;
+    }
+
+    public TimerConfig getTimer() {
+        return timer;
+    }
+
+    public void setTimer(TimerConfig timer) {
+        this.timer = timer;
+    }
+
+    public ExecutorConfig getExecutor() {
+        return executor;
+    }
+
+    public void setExecutor(ExecutorConfig executor) {
+        this.executor = executor;
+    }
+
+    public ThreadPoolConfig getPromptGenerationPool() {
+        return promptGenerationPool;
+    }
+
+    public void setPromptGenerationPool(ThreadPoolConfig promptGenerationPool) {
+        this.promptGenerationPool = promptGenerationPool;
+    }
+
+    public ThreadPoolConfig getSurgeryAnalysisPool() {
+        return surgeryAnalysisPool;
+    }
+
+    public void setSurgeryAnalysisPool(ThreadPoolConfig surgeryAnalysisPool) {
+        this.surgeryAnalysisPool = surgeryAnalysisPool;
+    }
+
+    public MonitoringConfig getMonitoring() {
+        return monitoring;
+    }
+
+    public void setMonitoring(MonitoringConfig monitoring) {
+        this.monitoring = monitoring;
+    }
+
+    public ExecutionPollingConfig getExecutionPolling() {
+        return executionPolling;
+    }
+
+    public void setExecutionPolling(ExecutionPollingConfig executionPolling) {
+        this.executionPolling = executionPolling;
+    }
+
+    /**
+     * 自动执行配置类
+     */
+    public static class AutoExecuteConfig {
+        /**
+         * 执行间隔时间（毫秒）
+         * 默认值：5000毫秒（5秒）
+         */
+        private long interval = 5000;
+
+        /**
+         * 最大线程数
+         * 默认值：10个线程
+         */
+        private int maxThreads = 10;
+
+        /**
+         * 是否启用自动执行
+         * 默认值：true
+         */
+        private boolean enabled = true;
+
+        /**
+         * 时区配置
+         * 默认值：Asia/Shanghai
+         */
+        private String timezone = "Asia/Shanghai";
+
+        public long getInterval() {
+            return interval;
+        }
+
+        public void setInterval(long interval) {
+            this.interval = interval;
+        }
+
+        public int getMaxThreads() {
+            return maxThreads;
+        }
+
+        public void setMaxThreads(int maxThreads) {
+            this.maxThreads = maxThreads;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getTimezone() {
+            return timezone;
+        }
+
+        public void setTimezone(String timezone) {
+            this.timezone = timezone;
+        }
+    }
+
+    /**
+     * 定时任务配置类
+     */
+    public static class TimerConfig {
+        /**
+         * 每日任务执行时间（cron表达式）
+         * 默认值：每天7:00执行
+         */
+        private String dailyTime = "0 0 7 * * *";
+
+        /**
+         * 手术分析任务执行时间（cron表达式）
+         * 默认值：每天8:00执行
+         */
+        private String surgeryAnalysisTime = "0 0 8 * * *";
+
+        /**
+         * 手术分析任务是否启用
+         * 默认值：true（启用）
+         */
+        private boolean surgeryAnalysisEnabled = true;
+
+        /**
+         * 最大并发数
+         * 默认值：5个并发线程
+         */
+        private int maxConcurrency = 5;
+
+        /**
+         * 固定延迟任务间隔（分钟）
+         * 默认值：5分钟
+         */
+        private int fixedDelayMinutes = 5;
+
+        /**
+         * 是否启用科室过滤
+         * 默认值：false（禁用）
+         */
+        private boolean departmentFilterEnabled = false;
+
+        /**
+         * 目标科室列表
+         * 默认值：空列表
+         */
+        private List<String> targetDepartments = new ArrayList<>();
+
+
+        /**
+         * 定时任务是否启用
+         * 默认值：true（启用）
+         */
+        private boolean enabled = true;
+
+        /**
+         * 修复可能的字符编码问题
+         * 当配置文件中的中文被错误解码时，尝试修复编码
+         * 
+         * @param input 可能乱码的字符串
+         * @return 修复后的字符串
+         */
+        private String fixEncodingIfNeeded(String input) {
+            if (input == null) {
+                return null;
+            }
+            if (input.isEmpty()) {
+                return input;
+            }
+
+            // 如果字符串已包含中文等CJK字符，并且不含常见"错码"标记，视为已正确编码，直接返回
+            if (containsCjk(input) && !looksLikeMojibake(input)) {
+                return input;
+            }
+
+            // 仅当出现典型"UTF-8按ISO-8859-1显示"的错码特征时尝试纠正
+            if (looksLikeMojibake(input)) {
+                String fixed = new String(input.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                // 若纠正后中文占比明显提升，则采用纠正结果，否则保留原值以避免误修
+                if (cjkCount(fixed) > cjkCount(input)) {
+                    System.out.println("字符编码修复: '" + input + "' -> '" + fixed + "'");
+                    return fixed;
+                }
+            }
+
+            // 其他情况不做转换，避免破坏已正确的Unicode字符串
+            return input;
+        }
+
+        /**
+         * 典型"错码"特征检测（UTF-8被当作ISO-8859-1/Windows-1252显示的常见序列）
+         */
+        private boolean looksLikeMojibake(String s) {
+            // 常见标记：'Ã', 'Â', '¤', '¿', '�'(U+FFFD替换字符)
+            return s.indexOf('Ã') >= 0 || s.indexOf('Â') >= 0 || s.indexOf('¤') >= 0 || s.indexOf('¿') >= 0 || s.indexOf('\uFFFD') >= 0;
+        }
+
+        /**
+         * 是否包含CJK中文字符
+         */
+        private boolean containsCjk(String s) {
+            for (int i = 0; i < s.length(); i++) {
+                char ch = s.charAt(i);
+                if (isCjk(ch)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * 统计CJK中文字符数量
+         */
+        private int cjkCount(String s) {
+            int count = 0;
+            for (int i = 0; i < s.length(); i++) {
+                if (isCjk(s.charAt(i))) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        /**
+         * 判断字符是否属于中文相关的Unicode块
+         */
+        private boolean isCjk(char ch) {
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(ch);
+            return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                    || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
+                    || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B
+                    || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS;
+        }
+
+        /**
+         * 过滤模式枚举
+         */
+        public enum FilterMode {
+            NONE,              // 无过滤
+            DEPARTMENT_ONLY    // 仅科室过滤
+        }
+
+        public String getDailyTime() {
+            return dailyTime;
+        }
+
+        public void setDailyTime(String dailyTime) {
+            this.dailyTime = dailyTime;
+        }
+
+        public String getSurgeryAnalysisTime() {
+            return surgeryAnalysisTime;
+        }
+
+        public void setSurgeryAnalysisTime(String surgeryAnalysisTime) {
+            this.surgeryAnalysisTime = surgeryAnalysisTime;
+        }
+
+        public boolean isSurgeryAnalysisEnabled() {
+            return surgeryAnalysisEnabled;
+        }
+
+        public void setSurgeryAnalysisEnabled(boolean surgeryAnalysisEnabled) {
+            this.surgeryAnalysisEnabled = surgeryAnalysisEnabled;
+        }
+
+        public int getMaxConcurrency() {
+            return maxConcurrency;
+        }
+
+        public void setMaxConcurrency(int maxConcurrency) {
+            this.maxConcurrency = maxConcurrency;
+        }
+
+        public int getFixedDelayMinutes() {
+            return fixedDelayMinutes;
+        }
+
+        public void setFixedDelayMinutes(int fixedDelayMinutes) {
+            this.fixedDelayMinutes = fixedDelayMinutes;
+        }
+
+        public boolean isDepartmentFilterEnabled() {
+            return departmentFilterEnabled;
+        }
+
+        public void setDepartmentFilterEnabled(boolean departmentFilterEnabled) {
+            this.departmentFilterEnabled = departmentFilterEnabled;
+        }
+
+        public List<String> getTargetDepartments() {
+            return targetDepartments;
+        }
+
+        public void setTargetDepartments(List<String> targetDepartments) {
+            if (targetDepartments != null) {
+                List<String> fixedDepartments = new ArrayList<>();
+                for (String department : targetDepartments) {
+                    String fixed = fixEncodingIfNeeded(department);
+                    fixedDepartments.add(fixed);
+                    // 添加调试日志
+                    System.out.println("科室名称转换: '" + department + "' -> '" + fixed + "'");
+                }
+                this.targetDepartments = fixedDepartments;
+            } else {
+                this.targetDepartments = new ArrayList<>();
+            }
+        }
+
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+
+        /**
+         * 配置验证方法
+         */
+        public void validateFilterConfiguration() {
+            if (departmentFilterEnabled && (targetDepartments == null || targetDepartments.isEmpty())) {
+                throw new IllegalStateException("启用科室过滤时，目标科室列表不能为空");
+            }
+        }
+
+        /**
+         * 获取当前过滤模式
+         */
+        public FilterMode getCurrentFilterMode() {
+            if (departmentFilterEnabled) {
+                return FilterMode.DEPARTMENT_ONLY;
+            } else {
+                return FilterMode.NONE;
+            }
+        }
+    }
+
+    /**
+     * 线程池配置类
+     */
+    public static class ExecutorConfig {
+        /**
+         * 调度线程池大小
+         * 默认值：5个线程
+         */
+        private int poolSize = 5;
+
+        /**
+         * 线程名称前缀
+         * 默认值：medai-scheduler-
+         */
+        private String threadNamePrefix = "medai-scheduler-";
+
+        /**
+         * 核心线程数
+         * 默认值：10个线程
+         */
+        private int corePoolSize = 10;
+
+        /**
+         * 最大线程数
+         * 默认值：20个线程
+         */
+        private int maxPoolSize = 20;
+
+        /**
+         * 队列容量
+         * 默认值：200个任务
+         */
+        private int queueCapacity = 200;
+
+        public int getPoolSize() {
+            return poolSize;
+        }
+
+        public void setPoolSize(int poolSize) {
+            this.poolSize = poolSize;
+        }
+
+        public String getThreadNamePrefix() {
+            return threadNamePrefix;
+        }
+
+        public void setThreadNamePrefix(String threadNamePrefix) {
+            this.threadNamePrefix = threadNamePrefix;
+        }
+
+        public int getCorePoolSize() {
+            return corePoolSize;
+        }
+
+        public void setCorePoolSize(int corePoolSize) {
+            this.corePoolSize = corePoolSize;
+        }
+
+        public int getMaxPoolSize() {
+            return maxPoolSize;
+        }
+
+        public void setMaxPoolSize(int maxPoolSize) {
+            this.maxPoolSize = maxPoolSize;
+        }
+
+        public int getQueueCapacity() {
+            return queueCapacity;
+        }
+
+        public void setQueueCapacity(int queueCapacity) {
+            this.queueCapacity = queueCapacity;
+        }
+    }
+
+    /**
+     * 线程池配置类
+     */
+    public static class ThreadPoolConfig {
+        /**
+         * 核心线程数
+         * 默认值：3个线程
+         */
+        private int corePoolSize = 3;
+
+        /**
+         * 最大线程数
+         * 默认值：5个线程
+         */
+        private int maxPoolSize = 5;
+
+        /**
+         * 队列容量
+         * 默认值：50个任务
+         */
+        private int queueCapacity = 50;
+
+        /**
+         * 线程名称前缀
+         * 默认值：medai-
+         */
+        private String threadNamePrefix = "medai-";
+
+        public int getCorePoolSize() {
+            return corePoolSize;
+        }
+
+        public void setCorePoolSize(int corePoolSize) {
+            this.corePoolSize = corePoolSize;
+        }
+
+        public int getMaxPoolSize() {
+            return maxPoolSize;
+        }
+
+        public void setMaxPoolSize(int maxPoolSize) {
+            this.maxPoolSize = maxPoolSize;
+        }
+
+        public int getQueueCapacity() {
+            return queueCapacity;
+        }
+
+        public void setQueueCapacity(int queueCapacity) {
+            this.queueCapacity = queueCapacity;
+        }
+
+        public String getThreadNamePrefix() {
+            return threadNamePrefix;
+        }
+
+        public void setThreadNamePrefix(String threadNamePrefix) {
+            this.threadNamePrefix = threadNamePrefix;
+        }
+    }
+
+    /**
+     * 监控配置类
+     */
+    public static class MonitoringConfig {
+        /**
+         * 是否启用监控
+         * 默认值：true
+         */
+        private boolean enabled = true;
+
+        /**
+         * 指标收集间隔（毫秒）
+         * 默认值：60000毫秒（1分钟）
+         */
+        private int metricsInterval = 60000;
+
+        /**
+         * 告警邮箱列表
+         * 默认值：空列表
+         */
+        private List<String> alertEmails = new ArrayList<>();
+
+        /**
+         * 警告阈值（百分比）
+         * 默认值：80%
+         */
+        private int warningThreshold = 80;
+
+        /**
+         * 严重警告阈值（百分比）
+         * 默认值：95%
+         */
+        private int criticalThreshold = 95;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getMetricsInterval() {
+            return metricsInterval;
+        }
+
+        public void setMetricsInterval(int metricsInterval) {
+            this.metricsInterval = metricsInterval;
+        }
+
+        public List<String> getAlertEmails() {
+            return alertEmails;
+        }
+
+        public void setAlertEmails(List<String> alertEmails) {
+            this.alertEmails = alertEmails;
+        }
+
+        public int getWarningThreshold() {
+            return warningThreshold;
+        }
+
+        public void setWarningThreshold(int warningThreshold) {
+            this.warningThreshold = warningThreshold;
+        }
+
+        public int getCriticalThreshold() {
+            return criticalThreshold;
+        }
+
+        public void setCriticalThreshold(int criticalThreshold) {
+            this.criticalThreshold = criticalThreshold;
+        }
+    }
+
+    /**
+     * 执行服务器轮询配置类
+     */
+    public static class ExecutionPollingConfig {
+        /**
+         * 最大并发数
+         * 默认值：5个并发线程
+         */
+        private int maxConcurrency = 5;
+
+        /**
+         * 任务超时时间（秒）
+         * 默认值：900秒（15分钟）- 针对LLM调用优化
+         */
+        private int timeoutSeconds = 900;
+
+        /**
+         * 是否启用多线程处理
+         * 默认值：true
+         */
+        private boolean concurrentEnabled = true;
+
+        /**
+         * 最大重试次数
+         * 默认值：3次
+         */
+        private int maxRetryCount = 3;
+
+        public int getMaxConcurrency() {
+            return maxConcurrency;
+        }
+
+        public void setMaxConcurrency(int maxConcurrency) {
+            this.maxConcurrency = maxConcurrency;
+        }
+
+        public int getTimeoutSeconds() {
+            return timeoutSeconds;
+        }
+
+        public void setTimeoutSeconds(int timeoutSeconds) {
+            this.timeoutSeconds = timeoutSeconds;
+        }
+
+        public boolean isConcurrentEnabled() {
+            return concurrentEnabled;
+        }
+
+        public void setConcurrentEnabled(boolean concurrentEnabled) {
+            this.concurrentEnabled = concurrentEnabled;
+        }
+
+        public int getMaxRetryCount() {
+            return maxRetryCount;
+        }
+
+        public void setMaxRetryCount(int maxRetryCount) {
+            this.maxRetryCount = maxRetryCount;
+        }
+    }
+
+    /**
+     * 验证配置参数的有效性
+     * @throws IllegalStateException 当配置参数无效时抛出异常
+     */
+    public void validateConfiguration() {
+        validateTimerConfiguration();
+        validateAutoExecuteConfiguration();
+        validateExecutionPollingConfiguration();
+        validateThreadPoolConfigurations();
+        validateMonitoringConfiguration();
+    }
+    
+    /**
+     * 验证定时任务配置
+     * @throws IllegalStateException 当定时任务配置无效时抛出异常
+     */
+    private void validateTimerConfiguration() {
+        validatePositiveValue(timer.getMaxConcurrency(), "定时任务最大并发数");
+        validateNotEmpty(timer.getDailyTime(), "定时任务cron表达式");
+        validateNotEmpty(timer.getSurgeryAnalysisTime(), "手术分析任务cron表达式");
+    }
+    
+    /**
+     * 验证自动执行配置
+     * @throws IllegalStateException 当自动执行配置无效时抛出异常
+     */
+    private void validateAutoExecuteConfiguration() {
+        validatePositiveValue(autoExecute.getInterval(), "自动执行间隔");
+        validatePositiveValue(autoExecute.getMaxThreads(), "自动执行最大线程数");
+        validateNotEmpty(autoExecute.getTimezone(), "时区配置");
+    }
+    
+    /**
+     * 验证执行轮询配置
+     * @throws IllegalStateException 当执行轮询配置无效时抛出异常
+     */
+    private void validateExecutionPollingConfiguration() {
+        validatePositiveValue(executionPolling.getMaxConcurrency(), "执行轮询最大并发数");
+        validateMinValue(executionPolling.getTimeoutSeconds(), 10, "执行轮询超时时间");
+        validateNonNegativeValue(executionPolling.getMaxRetryCount(), "执行轮询最大重试次数");
+    }
+    
+    /**
+     * 验证线程池配置
+     * @throws IllegalStateException 当线程池配置无效时抛出异常
+     */
+    private void validateThreadPoolConfigurations() {
+        validateThreadPoolConfig(promptGenerationPool, "Prompt生成线程池");
+        validateThreadPoolConfig(surgeryAnalysisPool, "手术分析线程池");
+    }
+    
+    /**
+     * 验证监控配置
+     * @throws IllegalStateException 当监控配置无效时抛出异常
+     */
+    private void validateMonitoringConfiguration() {
+        validateMinValue(monitoring.getMetricsInterval(), 1000, "监控指标收集间隔");
+        validateThresholdConfiguration(monitoring.getWarningThreshold(), monitoring.getCriticalThreshold());
+    }
+    
+    /**
+     * 验证阈值配置
+     * @param warningThreshold 警告阈值
+     * @param criticalThreshold 严重警告阈值
+     * @throws IllegalStateException 当阈值配置无效时抛出异常
+     */
+    private void validateThresholdConfiguration(int warningThreshold, int criticalThreshold) {
+        if (warningThreshold >= criticalThreshold) {
+            throw new IllegalStateException("监控警告阈值必须小于严重警告阈值");
+        }
+        
+        if (warningThreshold < 0 || warningThreshold > 100) {
+            throw new IllegalStateException("监控警告阈值必须在0-100之间");
+        }
+        
+        if (criticalThreshold < 0 || criticalThreshold > 100) {
+            throw new IllegalStateException("监控严重警告阈值必须在0-100之间");
+        }
+    }
+    
+    /**
+     * 验证值必须大于0
+     * @param value 要验证的值
+     * @param fieldName 字段名称
+     * @throws IllegalStateException 当值小于等于0时抛出异常
+     */
+    private void validatePositiveValue(long value, String fieldName) {
+        if (value <= 0) {
+            throw new IllegalStateException(fieldName + "必须大于0");
+        }
+    }
+    
+    /**
+     * 验证值必须大于0
+     * @param value 要验证的值
+     * @param fieldName 字段名称
+     * @throws IllegalStateException 当值小于等于0时抛出异常
+     */
+    private void validatePositiveValue(int value, String fieldName) {
+        if (value <= 0) {
+            throw new IllegalStateException(fieldName + "必须大于0");
+        }
+    }
+    
+    /**
+     * 验证值必须大于等于最小值
+     * @param value 要验证的值
+     * @param minValue 最小值
+     * @param fieldName 字段名称
+     * @throws IllegalStateException 当值小于最小值时抛出异常
+     */
+    private void validateMinValue(int value, int minValue, String fieldName) {
+        if (value < minValue) {
+            throw new IllegalStateException(fieldName + "必须大于等于" + minValue);
+        }
+    }
+    
+    /**
+     * 验证值不能为负数
+     * @param value 要验证的值
+     * @param fieldName 字段名称
+     * @throws IllegalStateException 当值为负数时抛出异常
+     */
+    private void validateNonNegativeValue(int value, String fieldName) {
+        if (value < 0) {
+            throw new IllegalStateException(fieldName + "不能为负数");
+        }
+    }
+    
+    /**
+     * 验证字符串不能为空
+     * @param value 要验证的字符串
+     * @param fieldName 字段名称
+     * @throws IllegalStateException 当字符串为空时抛出异常
+     */
+    private void validateNotEmpty(String value, String fieldName) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalStateException(fieldName + "不能为空");
+        }
+    }
+    
+    /**
+     * 验证线程池配置参数的有效性
+     * @param threadPoolConfig 线程池配置
+     * @param configName 配置名称
+     * @throws IllegalStateException 当配置参数无效时抛出异常
+     */
+    private void validateThreadPoolConfig(ThreadPoolConfig threadPoolConfig, String configName) {
+        if (threadPoolConfig.getCorePoolSize() <= 0) {
+            throw new IllegalStateException(configName + "核心线程数必须大于0");
+        }
+        
+        if (threadPoolConfig.getMaxPoolSize() < threadPoolConfig.getCorePoolSize()) {
+            throw new IllegalStateException(configName + "最大线程数必须大于等于核心线程数");
+        }
+        
+        if (threadPoolConfig.getQueueCapacity() <= 0) {
+            throw new IllegalStateException(configName + "队列容量必须大于0");
+        }
+        
+        if (threadPoolConfig.getThreadNamePrefix() == null || threadPoolConfig.getThreadNamePrefix().trim().isEmpty()) {
+            throw new IllegalStateException(configName + "线程名称前缀不能为空");
+        }
+    }
+
+    /**
+     * 生成配置摘要信息
+     * @return 配置摘要字符串
+     */
+    public String getConfigurationSummary() {
+        StringBuilder summary = new StringBuilder();
+        summary.append("调度配置摘要:\n");
+        
+        // 定时任务配置
+        summary.append("定时任务: ").append(timer.isEnabled() ? "启用" : "禁用").append("\n");
+        summary.append("  每日执行时间: ").append(timer.getDailyTime()).append("\n");
+        summary.append("  最大并发数: ").append(timer.getMaxConcurrency()).append("\n");
+        summary.append("  科室过滤: ").append(timer.isDepartmentFilterEnabled() ? "启用" : "禁用").append("\n");
+        if (timer.isDepartmentFilterEnabled() && !timer.getTargetDepartments().isEmpty()) {
+            summary.append("  目标科室: ").append(String.join(", ", timer.getTargetDepartments())).append("\n");
+        }
+        
+        // 自动执行配置
+        summary.append("自动执行: ").append(autoExecute.isEnabled() ? "启用" : "禁用").append("\n");
+        summary.append("  执行间隔: ").append(autoExecute.getInterval()).append("ms\n");
+        summary.append("  最大线程数: ").append(autoExecute.getMaxThreads()).append("\n");
+        summary.append("  时区: ").append(autoExecute.getTimezone()).append("\n");
+        
+        // 执行轮询配置
+        summary.append("执行轮询: ").append(executionPolling.isConcurrentEnabled() ? "启用" : "禁用").append("\n");
+        summary.append("  最大并发数: ").append(executionPolling.getMaxConcurrency()).append("\n");
+        summary.append("  超时时间: ").append(executionPolling.getTimeoutSeconds()).append("s\n");
+        summary.append("  最大重试次数: ").append(executionPolling.getMaxRetryCount()).append("\n");
+        
+        // 监控配置
+        summary.append("监控: ").append(monitoring.isEnabled() ? "启用" : "禁用").append("\n");
+        summary.append("  收集间隔: ").append(monitoring.getMetricsInterval()).append("ms\n");
+        summary.append("  警告阈值: ").append(monitoring.getWarningThreshold()).append("%\n");
+        summary.append("  严重警告阈值: ").append(monitoring.getCriticalThreshold()).append("%\n");
+        
+        return summary.toString();
+    }
+}
